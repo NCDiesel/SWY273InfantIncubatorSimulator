@@ -17,7 +17,6 @@ try:
     incPort = 23457
     infToken = authenticate(infPort, b"!Q#E%T&U8i6y4r2w")
     incToken = authenticate(incPort, b"!Q#E%T&U8i6y4r2w")
-    print(infToken, incToken)
 
     # SampleNetworkServer has authentication so the testcase will exit at this assertion.
     incMatch = re.search("[a-z,A-Z,0-9]{16}",incToken.decode())

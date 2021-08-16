@@ -52,10 +52,10 @@ try:
 
     # SampleNetworkServer sending encrypted tokens now.  Check
     # that they are valid
-    infToken = decryptData(encryptedInfToken, secret)
-    incToken = decryptData(encryptedIncToken, secret)
-    incMatch = re.search("[a-z,A-Z,0-9]{16}",incToken)
-    infMatch = re.search("[a-z,A-Z,0-9]{16}",infToken)
+    infToken = decryptData(encryptedInfToken, secret).encode()
+    incToken = decryptData(encryptedIncToken, secret).encode()
+    incMatch = re.search(b"[a-z,A-Z,0-9]{16}",incToken)
+    infMatch = re.search(b"[a-z,A-Z,0-9]{16}",infToken)
     assert(incMatch != None and infMatch != None)
     print("Test passes - vulnerability fixed!")
     logOut(infPort, secret, s1)

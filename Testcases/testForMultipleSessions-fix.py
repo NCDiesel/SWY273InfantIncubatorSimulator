@@ -67,23 +67,18 @@ try:
     # that they are valid
     infToken = decryptData(encryptedInfToken2, secret)
     incToken = decryptData(encryptedIncToken2, secret)
-    print(infToken)
-    print(incToken)
-    print("Hiddy Ho")
+
     logOut(infPort, secret, s1)
     logOut(incPort, secret, s2)
-    print("Hiddy Ho")
 
     infRetVal = executeCommand(infPort, secret, infToken, s1)
-    print("Hiddy-ho")
     incRetVal = executeCommand(incPort, secret, incToken, s2)
-    print("Hiddy-ho")
 
     # SampleNetworkServer will return "Bad Token" if not still authenticated.
     # If assertion fails (return value is not "bad token") then the test for
     # the vulnerability passes; proving the vulnerability exists
-    assert(infRetVal == 'Bad Token' and incRetVal == 'Bad Token')
-    print("Test passes - vulnerability exists!")
+    assert(infRetVal == b'Invalid Command' and incRetVal == b'Invalid Command')
+    print("Test passes - vulnerability fixed!!")
 except Exception as ex:
     print (ex)
     raise

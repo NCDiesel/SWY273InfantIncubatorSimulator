@@ -1,7 +1,6 @@
 import threading
 import datetime
 import traceback
-import pprint
 from Crypto.Cipher import PKCS1_OAEP, AES
 from Crypto.Random import get_random_bytes
 from Crypto.PublicKey import RSA
@@ -30,7 +29,6 @@ class SmartNetworkThermometer (threading.Thread) :
         self.updateTemperature()
         self.tokens = []
         self.sessions = {}
-        self.pp = pprint.PrettyPrinter(indent=4)
 
         self.serverSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.serverSocket.bind(("127.0.0.1", port))
@@ -72,7 +70,6 @@ class SmartNetworkThermometer (threading.Thread) :
 
     def processCommands(self, msg, addr) :
         cmds = msg.split(';')
-        print(cmds)
         for c in cmds :
             cs = c.split(' ')
             if len(cs) == 1 : # Now valid for all commands
@@ -86,9 +83,8 @@ class SmartNetworkThermometer (threading.Thread) :
                     outGoingMsg = self.encryptData(token)
                     self.serverSocket.sendto(outGoingMsg, addr)
                 elif cs[0] == "LOGOUT":
-                    self.pp.pprint(self.sessions[user])
-                    del self.sessions[user]
-                    self.pp.pprint(self.sessions)
+                    if(self.sessions[user]):
+                        del self.sessions[user]
                 elif c == "SET_DEGF" :
                     self.deg = "F"
                 elif c == "SET_DEGC" :
@@ -110,7 +106,6 @@ class SmartNetworkThermometer (threading.Thread) :
             try :
                 # We should have have received a message encrypted message
                 encMsg, addr = self.serverSocket.recvfrom(1024)
-                print(len(encMsg))
                 try:
                     # private_key = RSA.import_key(open("./receiver").read(), passphrase="Farmall1")
                     # pkSize = private_key.size_in_bytes()
@@ -128,7 +123,6 @@ class SmartNetworkThermometer (threading.Thread) :
                     print(traceback.format_exc())
                     errMsg = "WTH?: {0}".format(e).encode()
                     self.serverSocket.sendto(errMsg, addr)
-                    # All commands should be a single command
                 cmds = msg.split(' ')
                 if len(cmds) == 1 :
                     self.processCommands(msg, addr)

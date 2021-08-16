@@ -23,9 +23,9 @@ This one is very serious.   Anyone with any access to a network sniffer can disc
 I solved this two ways:   First - I associated tokens with addresses and ports.   Second I used AES encryption.   Again, THIS IS LESS THAN IDEAL.   Using a key based system would be best, but it beyond the scope of the scope of this class to institute a full key management system within the application.  Again, Vault would be a nice fit for this.
 
 
-3 - May Authenticate multiple times, leaving a token valid if even if the user believes they
+3 - May Authenticate multiple times, leaving a token valid if even if the user believes they have logged out.
 
-If a user issues two “AUITH” requests, both are stored with the network server.  This creates a vulnerability where a user/client believes they/it have logged out yet a session is still valid. This token then is valid for as long as the server is running, giving threat actors a large time window for malfeasance.   The the first fix for #2(associating tokens with addresses and ports) addresses this one as well
+If a user issues two “AUTH” requests, both are stored with the network server.  This creates a vulnerability where a user/client believes they/it have logged out yet a session is still valid. This token then is valid for as long as the server is running, giving threat actors a large time window for malfeasance.   The  first fix for #2(associating tokens with addresses and ports) addresses this one as well
 
 4 - No Session Expiration
 

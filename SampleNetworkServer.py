@@ -1,4 +1,10 @@
 import threading
+import datetime
+import traceback
+import pprint
+from Crypto.Cipher import PKCS1_OAEP, AES
+from Crypto.Random import get_random_bytes
+from Crypto.PublicKey import RSA
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import infinc
@@ -23,6 +29,8 @@ class SmartNetworkThermometer (threading.Thread) :
         self.curTemperature = 0
         self.updateTemperature()
         self.tokens = []
+        self.sessions = {}
+        self.pp = pprint.PrettyPrinter(indent=4)
 
         self.serverSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.serverSocket.bind(("127.0.0.1", port))
@@ -52,59 +60,81 @@ class SmartNetworkThermometer (threading.Thread) :
 
         return self.curTemperature
 
+    def encryptData(self, data):
+        try:
+            cipher_aes = AES.new(os.environ['SECRET'].encode('UTF-8'), AES.MODE_EAX)
+            ciphertext, tag = cipher_aes.encrypt_and_digest(data.encode("UTF-8"))
+            encMsg = b''.join([cipher_aes.nonce, tag, ciphertext])
+            return encMsg
+        except Exception as e:
+            print(traceback.print_exc())
+            print(e)
+
     def processCommands(self, msg, addr) :
         cmds = msg.split(';')
+        print(cmds)
         for c in cmds :
             cs = c.split(' ')
-            if len(cs) == 2 : #should be either AUTH or LOGOUT
+            if len(cs) == 1 : # Now valid for all commands
+                user = ''.join(addr[0]+'-'+str(addr[1]))
                 if cs[0] == "AUTH":
-                    if cs[1] == "!Q#E%T&U8i6y4r2w" :
-                        self.tokens.append(''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16)))
-                        self.serverSocket.sendto(self.tokens[-1].encode("utf-8"), addr)
-                        #print (self.tokens[-1])
+                    token = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16))
+                    self.sessions[user] = {
+                        "timestamp": datetime.datetime.now(),
+                        "token": token
+                    }
+                    outGoingMsg = self.encryptData(token)
+                    self.serverSocket.sendto(outGoingMsg, addr)
                 elif cs[0] == "LOGOUT":
-                    if cs[1] in self.tokens :
-                        self.tokens.remove(cs[1])
-                else : #unknown command
+                    self.pp.pprint(self.sessions[user])
+                    del self.sessions[user]
+                    self.pp.pprint(self.sessions)
+                elif c == "SET_DEGF" :
+                    self.deg = "F"
+                elif c == "SET_DEGC" :
+                    self.deg = "C"
+                elif c == "SET_DEGK" :
+                    self.deg = "K"
+                elif c == "GET_TEMP" :
+                    self.serverSocket.sendto(b"%f\n" % self.getTemperature(), addr)
+                elif c == "UPDATE_TEMP" :
+                    self.updateTemperature()
+                elif c :
                     self.serverSocket.sendto(b"Invalid Command\n", addr)
-            elif c == "SET_DEGF" :
-                self.deg = "F"
-            elif c == "SET_DEGC" :
-                self.deg = "C"
-            elif c == "SET_DEGK" :
-                self.deg = "K"
-            elif c == "GET_TEMP" :
-                self.serverSocket.sendto(b"%f\n" % self.getTemperature(), addr)
-            elif c == "UPDATE_TEMP" :
-                self.updateTemperature()
-            elif c :
-                self.serverSocket.sendto(b"Invalid Command\n", addr)
+            else:
+                self.serverSocket.sendto(b"Invalid Command - are you using the old command syntax for AUTH or LOGOUT?\n", addr)
 
 
     def run(self) : #the running function
         while True : 
             try :
-                msg, addr = self.serverSocket.recvfrom(1024)
-                msg = msg.decode("utf-8").strip()
+                # We should have have received a message encrypted message
+                encMsg, addr = self.serverSocket.recvfrom(1024)
+                print(len(encMsg))
+                try:
+                    # private_key = RSA.import_key(open("./receiver").read(), passphrase="Farmall1")
+                    # pkSize = private_key.size_in_bytes()
+                    # enc_sessionKey, 
+                    nonce, tag, ciphertext = \
+                        [ encMsg[:16],
+                        encMsg[ 16:32],
+                        encMsg[32:]
+                        ]
+                    # cipher = PKCS1_OAEP.new(private_key)
+                    # sessionKey = cipher.decrypt(enc_sessionKey)
+                    AEScipher = AES.new(os.environ['SECRET'].encode('UTF-8'), AES.MODE_EAX, nonce)
+                    msg = AEScipher.decrypt_and_verify(ciphertext, tag).decode()
+                except Exception as e:
+                    print(traceback.format_exc())
+                    errMsg = "WTH?: {0}".format(e).encode()
+                    self.serverSocket.sendto(errMsg, addr)
+                    # All commands should be a single command
                 cmds = msg.split(' ')
-                if len(cmds) == 1 : # protected commands case
-                    semi = msg.find(';')
-                    if semi != -1 : #if we found the semicolon
-                        #print (msg)
-                        if msg[:semi] in self.tokens : #if its a valid token
-                            self.processCommands(msg[semi+1:], addr)
-                        else :
-                            self.serverSocket.sendto(b"Bad Token\n", addr)
-                    else :
-                            self.serverSocket.sendto(b"Bad Command\n", addr)
-                elif len(cmds) == 2 :
-                    if cmds[0] in self.open_cmds : #if its AUTH or LOGOUT
-                        self.processCommands(msg, addr) 
-                    else :
-                        self.serverSocket.sendto(b"Authenticate First\n", addr)
+                if len(cmds) == 1 :
+                    self.processCommands(msg, addr)
                 else :
-                    # otherwise bad command
-                    self.serverSocket.sendto(b"Bad Command\n", addr)
+                    # otherwise deprecated AUTH or bad command
+                    self.serverSocket.sendto(b"Bad Command or deprecated use of AUTH\n", addr)
     
             except IOError as e :
                 if e.errno == errno.EWOULDBLOCK :

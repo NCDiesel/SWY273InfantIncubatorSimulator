@@ -1,0 +1,53 @@
+I found several vulnerabilities in the code. I decide to concentrate on the vulnerabilities that surround user and session management even though I found many.  I believe user and session management vulnerabilities represent the greatest threat and concentrated my 4 tests on these.  However, to see a sample of some of the other vulnerabilities I found, please see below for the “bonus” vulnerabilities.  To quickly recap, here are the 4 vulnerabilities I decided to concentrate on:
+
+Plain text “secret”
+Token flies on the wire in clear text
+No Session Expiration
+May Authenticate multiple times, leaving a token valid if even if the user believes they logged out
+
+
+1 - Plain text secret:
+
+It goes without saying that any software that stores its secrets with the code if a huge security hole and one we needed to fix:
+
+    https://owasp.org/www-community/vulnerabilities/Password_Plaintext_Storage
+
+I solved this one by insisting the client and the server use a secret stored in an environment variable.   THIS IS LESS THAN IDEAL.  However, it is beyond the scope of this assignment to deploy a proper solution, such as Hashicorp’s Vault or other type of secure secrets management.  So I opted for an environment variable as a proof of concept as to what is possible.
+
+2 - Token flies on the wire in clear text
+
+This one is very serious.   Anyone with any access to a network sniffer can discern the tokens other users are using.   
+
+    https://owasp.org/www-community/vulnerabilities/Insecure_Transport
+
+I solved this two ways:   First - I associated tokens with addresses and ports.   Second I used AES encryption.   Again, THIS IS LESS THAN IDEAL.   Using a key based system would be best, but it beyond the scope of the scope of this class to institute a full key management system within the application.  Again, Vault would be a nice fit for this.
+
+
+3 - May Authenticate multiple times, leaving a token valid if even if the user believes they
+
+If a user issues two “AUITH” requests, both are stored with the network server.  This creates a vulnerability where a user/client believes they/it have logged out yet a session is still valid. This token then is valid for as long as the server is running, giving threat actors a large time window for malfeasance.   The the first fix for #2(associating tokens with addresses and ports) addresses this one as well
+
+4 - No Session Expiration
+
+Without expiration, the time window for for several threat vectors is essentially infinite (at least as long as the server is running), giving threat actors ample time to reverse engineer traffic, gaining access to clients running on co-workers/console machines, or simply brute forcing a fairly weak token generation scheme.  I solved this by enforcing a token to become invalid after a specific timeout (I used 1 minute to ease testing but a more reasonable number should be chosen) 
+
+
+Here are the “bonus” Vulnerabilities
+
+A - Malformed commands provide no feedback:
+
+Command such as “<token>;;” gives no response, possibly leading to a failure to properly monitor the infant and incubator should programatic errors occur.   All commands should give a response - positively or negatively - so edge error cases can be caught.   Better input handling would fix this
+
+B - Degree units leave client unintelligible
+
+Set the degrees unit yields the client unintelligible  again possibly leading to a failure to properly monitor the infant and incubator.   Ensuring the units are properly carried through to all instantiations of the thermometer classes.
+
+
+C - Logins not restricted to devices within the neonatal intensive care unit.
+
+As a security measure, it should not be possible for any attacker in network segments outside of the neonatal intensive care unit to be able to access the server.   Even if our applications are secure, attackers who have breached other segments should not be able to access SampleNetworkServer:
+
+    https://owasp.org/www-pdf-archive//Jss-sec_webapp_network-v.1.5.pdf
+
+A fairly simple check to retrieve the servers subnet and comparing clients to that subnet would fix this.
+
